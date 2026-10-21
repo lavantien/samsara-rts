@@ -1,0 +1,60 @@
+samsara-rts
+
+2d pixel-art rts running at 150hz
+
+technicalities:
+- all core control & game mechanics closely clone sc remastered and sc2 lotv, can reverse engineer the internal wirings at `C:\Program Files (x86)\StarCraft II` and `C:\Program Files (x86)\StarCraft`
+- use c23 via clang/llvm + raylib latest + sqlite + duckdb + native python scripts (no makefile/git-bash)
+- asset pipeline: assets will be fully pre generated
+	- parts and sprites: draw parts straight into an Image and upload it with LoadTextureFromImage. GetImage* functions cover gradients, noise, cellular patterns. for crisp pixel art, render at low res and upscale with point filtering.
+	- if svg as some of the starting points: LoadImageSvg and SUPPORT_FILEFORMAT_SVG build flag. we can embed svg strings int source and rasterize them once at startup. basic nanosvg rasterizer with no filters or text
+	- textures and effects: write glsl as c strings, load them with LoadShaderFromMemory, and bake the output into a RenderTexture2D. this work for glows, soft circles, noise.
+	- particles: use a plain struct array drawn with DrawTexturePro under BLEND_ADDITIVE. rlgl batches the draws, so sub million of particles at 150hz should be fine.
+	- skeleton and animation: build a bone tree with local position, rotation, and scale, compose world matrices with raymath, and draw each part at its bone. keyframes and easing curves can live in code. For a pixel-art look, round bone positions to whole pixels, or bake each clip into sprite-sheet frames at load.
+	- for the pipeline, bake everyything at startup into one atlas, then run per-frame work as bone evaluation + batched ddraws, which is cheap. for 150hz, use fixed-timestep simulation and interpolate the rendering
+- for font, use Iosevka Nerd Font fontsize big, default resolution is windowed 2560x1600, minimap on lower left, 3 disconnected sections: minimap, army selection with top row show assigned group tab 1-10, command panel (5x3), default keyscheme is 1:1 with this modified grid (`C:\Users\lavantien\Documents\StarCraft II\Accounts\342089839\Hotkeys\Raeliosol.SC2Hotkeys`)
+- for designing the races: use evolution/genetic and the techniques
+- for balancing the races: use the techniques and simulated data for automated balancing pipeline
+- PvBot only for now, PvP could be implemented later so take into account the modular design
+- have full api and tracing available for potential bot hook and also bot development/tuning
+- pull and triangulate groundings/themes/story/context from `~/dev/github/quotes-manager`'s cli & graph db
+- for art directions, mine/re from pixel art games at `C:\Program Files (x86)\Steam\steamapps\common\`, then synthesize a unique style that reflect the grounded themes/story/context
+
+race/resource philosophy for each of every race:
+- simplify the unnecessary complexity, streamline the logic to core of rts, remove invisible/burrow/casters
+- resource mined only 1 each trip, the cost reflect that, e.g. miner cost 15 silver
+- each hall supports 16 miners, each gold/silver mine contain 2000
+- everyone start with a t1 hall & 8 miners, building can be build anywhere, hall can be upgraded to tier 3
+- resources: silver (mineral) and gold (gas), player starts with 15 silver, unit cap is 500 supplies
+- units:
+	- tier 1: 2 silver only 1sup (miner, soldier), 1 mixed silver/gold 1sup (better soldier/worse air)
+	- tier 2: 1 mixed 2sup (siege/splash unit), 1 gold only 2sup (better air)
+	- tier 3: 1 mixed 3sup (air siege/long range unit), 1 gold only 5sup (ultimate unit)
+	- the ultimate units should be the most focus on balancing and countering
+- building types: 1 hall, 1 house, 2 barrack (1 for gold only), 1 upgrade, 2 static def (grd/air)
+- techs: upto +3 (buildings included in ground upgrades, +3 requires tier 3 hall), ground attack, ground defense, air attack, air defense, 
+
+map design:
+- can support full cap 500vs500 armies, map should be a square
+- players always spawn at opposite corners diagonally, and middle of the map should encourage big skirmish
+- each player can easily take 6 extra nearest adjacent bases and encourage static defense for this cluster
+- the game shipped with 10 maps, 2 for each race theme, e.g. 2 maps in hell theme, etc.
+
+5 races:
+1. hell
+2. animals
+3. ghosts
+4. humans
+5. gods
+
+-----------------------------
+high regularity elements?
+
+fft, n-body, sorting, parallel trial evaluation, stochastic sampling (mcts, simulated annealing)
+
+physics, collision broad-phase, wavefront pathfinding for agents, procedural generation/wave function collapsing, mcts playouts + nn evaluation
+
+gpu[cuda/nvcc] for evaluates (neural net eval dense matmul), cpu for search?
+------------------------------
+ant hill optimization, bayes heuristics, applied game theory
+------------------------------
